@@ -62,19 +62,20 @@ class WorkbenchPull extends Command {
 
         $this->line( 'Pulling ' . $origin . ' into ' . $dir );
 
-        @\File::makeDirectory( $dir . '/workbench/' . $vendor, 0777, true );
+        if ( ! file_exists( base_path( 'workbench/' . $vendor . '/' . $package ) ) ) {
+            @\File::makeDirectory( $dir . '/workbench/' . $vendor, 0777, true );
+            $p = ( new Process( [ 'git', 'clone', $origin ], $dir . '/workbench/' . $vendor ) );
+            $p->run();
+        }
+        $composerJson = json_decode( file_get_contents( base_path( 'composer.json' ) ), true );
+//        $composerJson = $this->addComposerJsonRepo( $composerJson, $vendorName );
+//        $composerJson = $this->addComposerJsonRequire( $composerJson, $vendorName );
 
-        $p = ( new Process( [ 'git', 'clone', $origin ], $dir . '/workbench/' . $vendor ) );
-        $p->run();
-
-        $composerJson = json_decode( file_get_contents( base_path( 'composer.json') ), true );
-        $composerJson = $this->addComposerJsonRepo( $composerJson, $vendorName );
-        $composerJson = $this->addComposerJsonRequire( $composerJson, $vendorName );
-
+        dd($composerJson);
         file_put_contents( 'composer.json', json_encode( $composerJson, JSON_PRETTY_PRINT ) );
 
-        $p = ( new Process( [ 'composer', 'install', $vendorName ] ) );
-        $p->run();
+        //        $p = ( new Process( [ 'composer', 'install', $vendorName ] ) );
+        //        $p->run();
     }
 
     protected function addComposerJsonRequire( $composerJson, $vendorName ) {
@@ -82,7 +83,7 @@ class WorkbenchPull extends Command {
         $repos = $composerJson[ 'require' ] ?? [];
         foreach ( $repos as $name => $r ) {
             if ( $name == $vendorName ) {
-                return;
+                return $composerJson;
             }
         }
         $repos[ $vendorName ] = '@dev';
@@ -98,7 +99,7 @@ class WorkbenchPull extends Command {
         $wbPath = 'workbench/' . $vendorName;
         foreach ( $repos as $r ) {
             if ( $r[ 'url' ] == $vendorName ) {
-                return;
+                return $composerJson;
             }
         }
         $repos[] = [
