@@ -2,9 +2,9 @@
 
 namespace Afterflow\Workbench;
 
+use Afterflow\Workbench\Console\WorkbenchNew;
 use Afterflow\Workbench\Console\WorkbenchPull;
 use Afterflow\Workbench\Console\WorkbenchUnlink;
-use Illuminate\Console\Command;
 use Illuminate\Support\ServiceProvider;
 
 class WorkbenchServiceProvider extends ServiceProvider {
@@ -17,6 +17,7 @@ class WorkbenchServiceProvider extends ServiceProvider {
         $this->commands( [
             WorkbenchPull::class,
             WorkbenchUnlink::class,
+            WorkbenchNew::class,
         ] );
 
     }
