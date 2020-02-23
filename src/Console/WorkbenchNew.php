@@ -39,7 +39,7 @@ class WorkbenchNew extends Command {
         $vendor     = explode( '/', $vendorName )[ 0 ];
         $package    = explode( '/', $vendorName )[ 1 ];
 
-        $this->line( 'Creating ' . $vendorName );
+        $this->line( 'Crafting ' . $vendorName );
     }
 
 }

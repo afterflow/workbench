@@ -2,6 +2,7 @@
 
 namespace Afterflow\Workbench\Console;
 
+use Afterflow\Framework\ComposerJson;
 use Illuminate\Console\Command;
 use Symfony\Component\Process\Process;
 
@@ -60,57 +61,24 @@ class WorkbenchPull extends Command {
 
         $dir = base_path();
 
-        $this->line( 'Pulling ' . $origin . ' into ' . $dir );
-
         if ( ! file_exists( base_path( 'workbench/' . $vendor . '/' . $package ) ) ) {
+            $this->line( 'Pulling ' . $origin . ' into ' . $dir );
             @\File::makeDirectory( $dir . '/workbench/' . $vendor, 0777, true );
             $p = ( new Process( [ 'git', 'clone', $origin ], $dir . '/workbench/' . $vendor ) );
             $p->run();
+        } else {
+
+            $this->line( 'Folder exists' );
         }
-        $composerJson = json_decode( file_get_contents( base_path( 'composer.json' ) ), true );
-        $composerJson = $this->addComposerJsonRepo( $composerJson, $vendorName );
-        $composerJson = $this->addComposerJsonRequire( $composerJson, $vendorName );
 
-        file_put_contents( 'composer.json', json_encode( $composerJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) );
-        @\File::deleteDirectory( base_path( 'vendor/' . $vendorName ) );
-
-        $p = ( new Process( [ 'composer', 'remove', $vendorName ] ) );
-        $p->run();
+        $cj = new ComposerJson();
+        $cj->addPathRepository( 'workbench/' . $vendorName );
+        //        $cj->addRequire( $vendorName );
+        //        @\File::deleteDirectory( base_path( 'vendor/' . $vendorName ) );
+        //        $p = ( new Process( [ 'composer', 'remove', $vendorName ] ) );
+        //        $p->run();
         $p = ( new Process( [ 'composer', 'require', $vendorName, '@dev' ] ) );
         $p->run();
     }
 
-    protected function addComposerJsonRequire( $composerJson, $vendorName ) {
-
-        $repos = $composerJson[ 'require' ] ?? [];
-        foreach ( $repos as $name => $r ) {
-            if ( $name == $vendorName ) {
-                return $composerJson;
-            }
-        }
-        $repos[ $vendorName ] = '@dev';
-
-        $composerJson[ 'require' ] = $repos;
-
-        return $composerJson;
-    }
-
-    protected function addComposerJsonRepo( $composerJson, $vendorName ) {
-
-        $repos  = $composerJson[ 'repositories' ] ?? [];
-        $wbPath = 'workbench/' . $vendorName;
-        foreach ( $repos as $r ) {
-            if ( $r[ 'url' ] == $vendorName ) {
-                return $composerJson;
-            }
-        }
-        $repos[] = [
-            'type' => 'path',
-            'url'  => $wbPath,
-        ];
-
-        $composerJson[ 'repositories' ] = $repos;
-
-        return $composerJson;
-    }
 }
