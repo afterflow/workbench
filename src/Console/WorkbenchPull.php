@@ -68,14 +68,16 @@ class WorkbenchPull extends Command {
             $p->run();
         }
         $composerJson = json_decode( file_get_contents( base_path( 'composer.json' ) ), true );
-//        $composerJson = $this->addComposerJsonRepo( $composerJson, $vendorName );
-//        $composerJson = $this->addComposerJsonRequire( $composerJson, $vendorName );
+        $composerJson = $this->addComposerJsonRepo( $composerJson, $vendorName );
+        $composerJson = $this->addComposerJsonRequire( $composerJson, $vendorName );
 
-        dd($composerJson);
-        file_put_contents( 'composer.json', json_encode( $composerJson, JSON_PRETTY_PRINT ) );
+        file_put_contents( 'composer.json', json_encode( $composerJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) );
+        \File::deleteDirectory( base_path( 'workbench/' . $vendorName ) );
 
-        //        $p = ( new Process( [ 'composer', 'install', $vendorName ] ) );
-        //        $p->run();
+        $p = ( new Process( [ 'composer', 'remove', $vendorName ] ) );
+        $p->run();
+        $p = ( new Process( [ 'composer', 'require', $vendorName, '@dev' ] ) );
+        $p->run();
     }
 
     protected function addComposerJsonRequire( $composerJson, $vendorName ) {
