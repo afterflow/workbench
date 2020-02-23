@@ -41,7 +41,11 @@ class WorkbenchPull extends Command {
 
         $this->line( 'Pulling ' . $vendorName );
         $data = json_decode( file_get_contents( 'https://packagist.org/search.json?q=' . $vendorName ), true );
-        $repo = $data[ 'results' ][ 0 ][ 'repository' ];
+        if ( count( $data[ 'results' ] ) ) {
+            $repo = $data[ 'results' ][ 0 ][ 'repository' ];
+        } else {
+            $repo = 'https://github.com/' . $vendorName;
+        }
         $this->line( 'Found repository: ' . $repo );
 
         $parts              = collect( explode( '/', $repo ) )->reverse()->take( 2 )->reverse();
@@ -54,29 +58,28 @@ class WorkbenchPull extends Command {
             $origin = 'git@github.com:' . $vendorNameOnGithub . '.git';
         }
 
-        $dir = 'workbench/' . $vendorName;
-        $dir = base_path( $dir );
+        $dir = base_path();
 
         $this->line( 'Pulling ' . $origin . ' into ' . $dir );
 
-        \File::makeDirectory( $dir . '/workbench/' . $vendor, 0777, true );
+        @\File::makeDirectory( $dir . '/workbench/' . $vendor, 0777, true );
 
         $p = ( new Process( [ 'git', 'clone', $origin ], $dir . '/workbench/' . $vendor ) );
         $p->run();
 
-        $composerJson = json_decode( file_get_contents( 'composer.json' ), true );
+        $composerJson = json_decode( file_get_contents( base_path( 'composer.json') ), true );
         $composerJson = $this->addComposerJsonRepo( $composerJson, $vendorName );
         $composerJson = $this->addComposerJsonRequire( $composerJson, $vendorName );
 
         file_put_contents( 'composer.json', json_encode( $composerJson, JSON_PRETTY_PRINT ) );
 
-        $p = ( new Process( [ 'composer', 'install' ] ) );
+        $p = ( new Process( [ 'composer', 'install', $vendorName ] ) );
         $p->run();
     }
 
     protected function addComposerJsonRequire( $composerJson, $vendorName ) {
 
-        $repos = $composerJson[ 'require' ];
+        $repos = $composerJson[ 'require' ] ?? [];
         foreach ( $repos as $name => $r ) {
             if ( $name == $vendorName ) {
                 return;
@@ -91,7 +94,7 @@ class WorkbenchPull extends Command {
 
     protected function addComposerJsonRepo( $composerJson, $vendorName ) {
 
-        $repos  = $composerJson[ 'repositories' ];
+        $repos  = $composerJson[ 'repositories' ] ?? [];
         $wbPath = 'workbench/' . $vendorName;
         foreach ( $repos as $r ) {
             if ( $r[ 'url' ] == $vendorName ) {
