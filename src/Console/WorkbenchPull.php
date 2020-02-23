@@ -72,7 +72,7 @@ class WorkbenchPull extends Command {
         $composerJson = $this->addComposerJsonRequire( $composerJson, $vendorName );
 
         file_put_contents( 'composer.json', json_encode( $composerJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) );
-        \File::deleteDirectory( base_path( 'workbench/' . $vendorName ) );
+        @\File::deleteDirectory( base_path( 'vendor/' . $vendorName ) );
 
         $p = ( new Process( [ 'composer', 'remove', $vendorName ] ) );
         $p->run();
