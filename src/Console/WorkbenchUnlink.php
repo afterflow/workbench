@@ -11,7 +11,7 @@ class WorkbenchUnlink extends Command {
      *
      * @var string
      */
-    protected $signature = 'workbench:unlink {vendorName}';
+    protected $signature = 'workbench:unlink {--remove} {vendorName}';
 
     /**
      * The console command description.
@@ -44,7 +44,9 @@ class WorkbenchUnlink extends Command {
 
         $p = ( new Process( [ 'composer', 'remove', $vendorName ] ) );
         $p->run();
-        $p = ( new Process( [ 'composer', 'require', $vendorName, '@dev' ] ) );
+        if ( ! $this->option( 'remove' ) ) {
+            $p = ( new Process( [ 'composer', 'require', $vendorName, '@dev' ] ) );
+        }
         $p->run();
 
     }
@@ -52,9 +54,9 @@ class WorkbenchUnlink extends Command {
     protected function removeComposerJsonRepo( $composerJson, $vendorName ) {
 
         $repos = $composerJson[ 'repositories' ] ?? [];
-        foreach ( $repos as &$r ) {
-            if ( $r[ 'url' ] == $vendorName ) {
-                unset( $r );
+        foreach ( $repos as $k => $r ) {
+            if ( $r[ 'url' ] == 'workbench/' . $vendorName ) {
+                unset( $repos[ $k ] );
             }
         }
 
