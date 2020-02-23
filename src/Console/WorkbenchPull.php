@@ -73,10 +73,6 @@ class WorkbenchPull extends Command {
 
         $cj = new ComposerJson();
         $cj->addPathRepository( 'workbench/' . $vendorName );
-        //        $cj->addRequire( $vendorName );
-        //        @\File::deleteDirectory( base_path( 'vendor/' . $vendorName ) );
-        //        $p = ( new Process( [ 'composer', 'remove', $vendorName ] ) );
-        //        $p->run();
         $p = ( new Process( [ 'composer', 'require', $vendorName, '@dev' ] ) );
         $p->run();
     }
