@@ -1,6 +1,6 @@
 <?php
 
-namespace Afterflow\Craft;
+namespace Afterflow\Workbench;
 
 use Afterflow\Workbench\Console\WorkbenchPull;
 use Illuminate\Console\Command;
