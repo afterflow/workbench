@@ -4,6 +4,8 @@ namespace Afterflow\Workbench\Console;
 
 use Afterflow\Framework\ComposerJson;
 use Afterflow\Recipe\Recipe;
+use Afterflow\Workbench\Composer;
+use Afterflow\Workbench\Folders\WorkbenchFolder;
 use Illuminate\Console\Command;
 use Symfony\Component\Process\Process;
 
@@ -54,7 +56,9 @@ class WorkbenchNew extends Command {
 
         $this->alert( 'Crafting package' );
 
-        $base_path = base_path( 'workbench/' . $vendor . '/' . $package );
+        $workbench = new WorkbenchFolder();
+
+        $base_path = $workbench->packagePath( $vendor, $package );
 
         $this->copyStub( __DIR__ . '/../../stubs/package', $base_path );
 
@@ -83,13 +87,11 @@ class WorkbenchNew extends Command {
 
         $this->info( 'Package generated, enabling it...' );
 
-        $cj = new ComposerJson();
-        $cj->addPathRepository( 'workbench/' . $input[ 'vendor' ] . '/' . $input[ 'package' ] );
-        $p = ( new Process( [ 'composer', 'require', $input[ 'vendor' ] . '/' . $input[ 'package' ], '@dev' ] ) );
-        $p->run();
+        $composer = new Composer();
+        $composer->json()->addPathRepository( $base_path )->write();
+        $composer->require( $vendor, $package );
 
         $this->info( 'Done!' );
-
 
     }
 

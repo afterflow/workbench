@@ -2,6 +2,9 @@
 
 namespace Afterflow\Workbench\Console;
 
+use Afterflow\Workbench\Composer;
+use Afterflow\Workbench\Folders\VendorFolder;
+use Afterflow\Workbench\Folders\WorkbenchFolder;
 use Illuminate\Console\Command;
 use Symfony\Component\Process\Process;
 
@@ -35,33 +38,22 @@ class WorkbenchUnlink extends Command {
      * @return mixed
      */
     public function handle() {
-        $vendorName = $this->argument( 'vendorName' );
+        [ $vendor, $package ] = explode( '/', $this->argument( 'vendorName' ) );
+        $composer  = new Composer();
+        $workbench = new WorkbenchFolder();
 
-        $composerJson = json_decode( file_get_contents( base_path( 'composer.json' ) ), true );
-        $composerJson = $this->removeComposerJsonRepo( $composerJson, $vendorName );
-        file_put_contents( 'composer.json', json_encode( $composerJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) );
-        @\File::deleteDirectory( base_path( 'workbench/' . $vendorName ) );
+        $this->line( 'Removing package from composer' );
+        $composer->remove( $vendor, $package );
+        $this->line( 'Deleting folder in workbench' );
+        $workbench->deletePackageFolder( $vendor, $package );
 
-        $p = ( new Process( [ 'composer', 'remove', $vendorName ] ) );
-        $p->run();
         if ( ! $this->option( 'remove' ) ) {
-            $p = ( new Process( [ 'composer', 'require', $vendorName, '@dev' ] ) );
+            $this->line( 'Adding package back from packagist' );
+            $composer->require( $vendor, $package );
         }
-        $p->run();
+
+        $this->line( 'Done' );
 
     }
 
-    protected function removeComposerJsonRepo( $composerJson, $vendorName ) {
-
-        $repos = $composerJson[ 'repositories' ] ?? [];
-        foreach ( $repos as $k => $r ) {
-            if ( $r[ 'url' ] == 'workbench/' . $vendorName ) {
-                unset( $repos[ $k ] );
-            }
-        }
-
-        $composerJson[ 'repositories' ] = $repos;
-
-        return $composerJson;
-    }
 }

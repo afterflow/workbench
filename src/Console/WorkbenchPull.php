@@ -3,7 +3,14 @@
 namespace Afterflow\Workbench\Console;
 
 use Afterflow\Framework\ComposerJson;
+use Afterflow\Workbench\Composer;
+use Afterflow\Workbench\Folders\VendorFolder;
+use Afterflow\Workbench\Folders\WorkbenchFolder;
+use Afterflow\Workbench\GitHubRepository;
+use Afterflow\Workbench\PackagistApi;
+use Afterflow\Workbench\VendorPackageFolder;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\File;
 use Symfony\Component\Process\Process;
 
 class WorkbenchPull extends Command {
@@ -12,7 +19,7 @@ class WorkbenchPull extends Command {
      *
      * @var string
      */
-    protected $signature = 'workbench:pull {vendorName} {--ssh}';
+    protected $signature = 'workbench:pull {vendorName} {version=@dev} {--ssh}';
 
     /**
      * The console command description.
@@ -36,45 +43,63 @@ class WorkbenchPull extends Command {
      * @return mixed
      */
     public function handle() {
-        $vendorName = $this->argument( 'vendorName' );
-        $vendor     = explode( '/', $vendorName )[ 0 ];
-        $package    = explode( '/', $vendorName )[ 1 ];
+        [ $vendor, $package ] = explode( '/', $this->argument( 'vendorName' ) );
 
-        $this->line( 'Pulling ' . $vendorName );
-        $data = json_decode( file_get_contents( 'https://packagist.org/search.json?q=' . $vendorName ), true );
-        if ( count( $data[ 'results' ] ) ) {
-            $repo = $data[ 'results' ][ 0 ][ 'repository' ];
+        $this->line( 'Pulling ' . $vendor . '/' . $package );
+        $packagistApi = new PackagistApi();
+        if ( $repo = $packagistApi->getRepository( $vendor, $package ) ) {
         } else {
-            $repo = 'https://github.com/' . $vendorName;
-        }
-        $this->line( 'Found repository: ' . $repo );
-
-        $parts              = collect( explode( '/', $repo ) )->reverse()->take( 2 )->reverse();
-        $githubVendor       = $parts->first();
-        $githubName         = $parts->last();
-        $vendorNameOnGithub = $githubVendor . '/' . $githubName;
-
-        $origin = 'https://github.com/' . $vendorNameOnGithub . '.git';
-        if ( $this->option( 'ssh' ) ) {
-            $origin = 'git@github.com:' . $vendorNameOnGithub . '.git';
+            $repo = $this->askWithCompletion( 'Package ' . $vendor . '/' . $package . ' not found on Packagist. Please provide a GitHub repository URL', [
+                GitHubRepository::make( $vendor, $package )->toUrl(),
+            ], GitHubRepository::make( $vendor, $package )->toUrl() );
         }
 
-        $dir = base_path();
+        $gh = GitHubRepository::fromUrl( $repo );
 
-        if ( ! file_exists( base_path( 'workbench/' . $vendor . '/' . $package ) ) ) {
-            $this->line( 'Pulling ' . $origin . ' into ' . $dir );
-            @\File::makeDirectory( $dir . '/workbench/' . $vendor, 0777, true );
-            $p = ( new Process( [ 'git', 'clone', $origin ], $dir . '/workbench/' . $vendor ) );
-            $p->run();
-        } else {
+        if ( ! $gh->valid() ) {
+            $this->error( 'Not a valid GitHub repository' );
 
-            $this->line( 'Folder exists' );
+            return;
         }
 
-        $cj = new ComposerJson();
-        $cj->addPathRepository( 'workbench/' . $vendorName );
-        $p = ( new Process( [ 'composer', 'require', $vendorName, '@dev' ] ) );
+        $origin = $this->option( 'ssh' ) ? $gh->toSsh() : $gh->toHttps();
+
+        $workbench = new WorkbenchFolder();
+        $workbench->createFolder();
+
+
+        if ( $workbench->packageFolderExists( $vendor, $package ) ) {
+            if ( ! $this->confirm( 'Path ' . $workbench->packagePath( $vendor, $package ) . ' exists. Overwrite?' ) ) {
+                return $this->line( 'Pulling canceled.' );
+            }
+            $workbench->deletePackageFolder( $vendor, $package );
+        }
+
+        $this->line( 'Cloning ' . $origin . ' into ' . $workbench->packagePath( $vendor, $package ) );
+
+        $workbench->createPackageFolder( $vendor, $package );
+
+        if ( $this->confirm( 'Delete .git folder to prevent adding submodule?' ) ) {
+            File::deleteDirectory( $workbench->packagePath( $vendor, $package ) . '/.git' );
+        }
+
+        $vendorFolder = new VendorFolder();
+        $this->line( 'Deleting ' . $vendorFolder->packagePath( $vendor, $package ) );
+        $vendorFolder->deletePackageFolderIfExists( $vendor, $package );
+
+        $p = ( new Process( [ 'git', 'clone', $origin ], $workbench->vendorPath( $vendor ) ) );
         $p->run();
+
+        if ( $p->getExitCode() > 0 ) {
+            $this->error( 'Git clone exited with status code ' . $p->getExitCode() );
+            $this->error( $p->getErrorOutput() );
+        }
+
+        $this->line( 'Updating composer.json' );
+
+        $composer = new Composer();
+        $composer->json()->addPathRepository( $workbench->packagePath( $vendor, $package ) )->write();
+        $composer->require( $vendor, $package, $this->argument( 'version' ) );
     }
 
 }
