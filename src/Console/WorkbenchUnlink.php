@@ -48,7 +48,7 @@ class WorkbenchUnlink extends Command {
 		$this->line( 'Deleting folder in workbench' );
 		$workbench->deletePackageFolder( $vendor, $package );
 		$this->line( 'Deleting folder in vendor' );
-		$vendor->deletePackageFolder( $vendor, $package );
+		$v->deletePackageFolder( $vendor, $package );
 
 		if ( ! $this->option( 'remove' ) ) {
 			$this->line( 'Adding package back from packagist' );
