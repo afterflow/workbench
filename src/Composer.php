@@ -20,17 +20,25 @@ class Composer {
     }
 
     public function remove( $vendor, $package ) {
-        $p = ( new Process( [ 'composer', 'remove', $vendor . '/' . $package ] ) );
-        $p->run();
-
-        return $p;
+        return $this->command( 'remove ' . $vendor . '/' . $package );
     }
 
     public function require( $vendor, $package, $version = '@dev' ) {
-        $p = ( new Process( [ 'composer', 'require', $vendor . '/' . $package, $version ] ) );
-        $p->run();
 
-        return $p;
+        return $this->command( 'require ' . $vendor . '/' . $package . ' ' . $version );
+
     }
+
+    public function command( string $cmd ) {
+        $process = Process::fromShellCommandline( 'composer ' . $cmd, base_path() );
+        //    $process->setTty( Process::isTtySupported() );
+        $process->run( function ( $o, $e ) {
+            // only works without TTY
+            echo( $e );
+        } );
+
+        return $process->getOutput();
+    }
+
 
 }
